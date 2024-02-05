@@ -1,0 +1,109 @@
+[gd_scene load_steps=10 format=3 uid="uid://b1mpg7xsrglhk"]
+
+[ext_resource type="Script" path="res://addons/sprinkled_coding/effects/boom.gd" id="1_w7uhp"]
+[ext_resource type="AudioStream" uid="uid://bwjjw8b84t4nd" path="res://addons/sprinkled_coding/effects/boom.wav" id="2_qdudn"]
+[ext_resource type="FontFile" uid="uid://lp5ov7pqea1q" path="res://addons/sprinkled_coding/font.tres" id="3_5ltwo"]
+[ext_resource type="Texture2D" uid="uid://3l08b5f3lcru" path="res://addons/sprinkled_coding/effects/sprinkle_texture.tres" id="4_mhnm6"]
+
+[sub_resource type="Animation" id="Animation_pxf6h"]
+resource_name = "default"
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Label:scale")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 1),
+"transitions": PackedFloat32Array(-2, 1),
+"update": 0,
+"values": [Vector2(1, 1), Vector2(1.25, 1.25)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Label:position")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 1),
+"transitions": PackedFloat32Array(-2, 1),
+"update": 0,
+"values": [Vector2(-35, -32), Vector2(-35, -70)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Label:self_modulate")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.6),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Color(1, 1, 1, 1), Color(1, 1, 1, 0)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_ocb2c"]
+_data = {
+"default": SubResource("Animation_pxf6h")
+}
+
+[sub_resource type="Gradient" id="Gradient_v4df3"]
+offsets = PackedFloat32Array(0, 0.351, 1)
+colors = PackedColorArray(0.16, 0.78, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_l67c8"]
+gradient = SubResource("Gradient_v4df3")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_yuxwa"]
+lifetime_randomness = 0.5
+emission_shape = 1
+emission_sphere_radius = 4.0
+spread = 180.0
+gravity = Vector3(-10, 0, 0)
+initial_velocity_min = 152.0
+initial_velocity_max = 225.0
+linear_accel_min = -750.0
+linear_accel_max = -250.0
+color_ramp = SubResource("GradientTexture1D_l67c8")
+
+[node name="Boom" type="Node2D"]
+script = ExtResource("1_w7uhp")
+
+[node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("2_qdudn")
+volume_db = -26.0
+
+[node name="Timer" type="Timer" parent="."]
+one_shot = true
+autostart = true
+
+[node name="Label" type="Label" parent="."]
+modulate = Color(1.57566, 0.940376, 0.324486, 1)
+self_modulate = Color(1, 1, 1, 0)
+texture_filter = 1
+offset_left = -35.0
+offset_top = -70.0
+offset_right = 35.0
+offset_bottom = -47.0
+scale = Vector2(1.25, 1.25)
+pivot_offset = Vector2(35, 8)
+theme_override_fonts/font = ExtResource("3_5ltwo")
+uppercase = true
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+autoplay = "default"
+libraries = {
+"": SubResource("AnimationLibrary_ocb2c")
+}
+
+[node name="GPUParticles2D" type="GPUParticles2D" parent="."]
+amount = 50
+process_material = SubResource("ParticleProcessMaterial_yuxwa")
+texture = ExtResource("4_mhnm6")
+lifetime = 0.5
+one_shot = true
+explosiveness = 1.0
+
+[connection signal="timeout" from="Timer" to="." method="_on_Timer_timeout"]
