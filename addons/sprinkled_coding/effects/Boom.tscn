@@ -61,9 +61,9 @@ lifetime_randomness = 0.5
 emission_shape = 1
 emission_sphere_radius = 4.0
 spread = 180.0
-gravity = Vector3(-10, 0, 0)
 initial_velocity_min = 152.0
 initial_velocity_max = 225.0
+gravity = Vector3(-10, 0, 0)
 linear_accel_min = -750.0
 linear_accel_max = -250.0
 color_ramp = SubResource("GradientTexture1D_l67c8")
@@ -93,12 +93,13 @@ theme_override_fonts/font = ExtResource("3_5ltwo")
 uppercase = true
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="."]
-autoplay = "default"
 libraries = {
 "": SubResource("AnimationLibrary_ocb2c")
 }
+autoplay = "default"
 
 [node name="GPUParticles2D" type="GPUParticles2D" parent="."]
+emitting = false
 amount = 50
 process_material = SubResource("ParticleProcessMaterial_yuxwa")
 texture = ExtResource("4_mhnm6")

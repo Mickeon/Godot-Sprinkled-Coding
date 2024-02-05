@@ -7,38 +7,35 @@ signal typing
 const BoomEffect = preload("effects/boom.gd")
 const BlipEffect = preload("effects/blip.gd")
 const NewlineEffect = preload("effects/newline.gd")
-const SprinkleSettings = preload("dock.gd")
+const SprinkleSettingsDock = preload("dock.gd")
 
 # Packed Scenes.
 const BoomScene = preload("effects/Boom.tscn")
 const BlipScene = preload("effects/Blip.tscn")
 const NewlineScene = preload("effects/Newline.tscn")
-const Dock = preload("Dock.tscn")
+const DockScene = preload("Dock.tscn")
 
-# Inner Variables.
 const PITCH_DECREMENT = 0.05
 
-var shake_timer := 0.0
-var shake_intensity := 0.0
 var time_since_last_effect := 0.0
 var last_key := ""
 var strength_increase := 0.0:
 	set(new):
 		strength_increase = clamp(new, 0.0, 1.0)
+
 var editors := {} ## Contains cached references to TextEdits.
-var dock: SprinkleSettings
+var dock: SprinkleSettingsDock
 
 
 func _enter_tree():
 	var script_editor := EditorInterface.get_script_editor()
-	script_editor.editor_script_changed.connect(_on_editor_script_changed)
+	script_editor.editor_script_changed.connect(find_all_text_editors.unbind(1))
 
-	# Add the main panel
-	dock = Dock.instantiate()
-	typing.connect(dock._on_typing)
+	# Add the main panel.
+	dock = DockScene.instantiate()
 	add_control_to_dock(DOCK_SLOT_RIGHT_UL, dock)
 	
-	find_all_text_editors(EditorInterface.get_script_editor())
+	find_all_text_editors()
 
 func _exit_tree():
 	if dock:
@@ -49,36 +46,6 @@ func _process(delta):
 	time_since_last_effect += delta
 	if (strength_increase > 0.0):
 		strength_increase -= delta * PITCH_DECREMENT
-
-func _on_editor_script_changed(_script):
-	var script_editor = EditorInterface.get_script_editor()
-	
-	editors.clear()
-	find_all_text_editors(script_editor)
-
-func _on_gui_input(event):
-	# Get last typed key.
-	if event is InputEventKey and event.pressed:
-		last_key = OS.get_keycode_string(event.get_keycode_with_modifiers())
-
-func _on_caret_changed(textedit: TextEdit):
-	if not editors.has(textedit):
-		# For some reason the editor instances all change
-		# when the file is saved so you need to reload them
-		editors.clear()
-		find_all_text_editors(EditorInterface.get_script_editor())
-		
-	editors[textedit]["line"] = textedit.get_caret_line()
-
-func _on_text_changed(textedit: TextEdit):
-	typing.emit()
-	
-	if editors.has(textedit):
-		for caret in textedit.get_caret_count():
-			try_to_emit_effects(textedit, caret)
-	
-	editors[textedit]["text"] = textedit.text
-	editors[textedit]["line"] = textedit.get_caret_line()
 
 
 func try_to_emit_effects(textedit: TextEdit, caret_index := 0):
@@ -99,12 +66,11 @@ func try_to_emit_effects(textedit: TextEdit, caret_index := 0):
 			textedit.add_child(effect)
 			
 			strength_increase = strength_increase - 0.01
-			
-			if dock.shake:
-				shake_screen(0.2, 1)
 	
 	# Typing.
 	if time_since_last_effect > 0.02 and len(textedit.text) >= len(editors[textedit]["text"]):
+		if last_key == "Space":
+			return
 #		time_since_last_effect = 0.0
 		set_deferred("time_since_last_effect", 0.0)
 		
@@ -119,39 +85,21 @@ func try_to_emit_effects(textedit: TextEdit, caret_index := 0):
 		textedit.add_child(effect)
 		strength_increase += 0.01 / (caret_index + 1)
 		
-		if dock.shake:
-			shake_screen(0.05, 1 * strength_increase * 5.0)
-		
 	# Newline.
 	if textedit.get_caret_line(caret_index) != editors[textedit]["line"]:
 		var effect: NewlineEffect = NewlineScene.instantiate()
 		effect.position = pos
 		effect.modulate = color
 		textedit.add_child(effect)
-		
-		if dock.shake:
-			shake_screen(0.05, 5)
 
-func shake_screen(duration: float, intensity: float):
-	if shake_timer > 0:
-		return # Already shaking.
-	
-	shake_timer = duration
-	shake_intensity = intensity
-	while shake_timer > 0:
-		shake_timer -= get_process_delta_time()
-		EditorInterface.get_base_control().position = Vector2(
-				randf_range(-shake_intensity, shake_intensity), 
-				randf_range(-shake_intensity, shake_intensity))
-		await get_tree().process_frame
-	
-	EditorInterface.get_base_control().position = Vector2.ZERO
+func find_all_text_editors():
+	editors.clear()
+	_recursive_find_text_editors(EditorInterface.get_script_editor())
 
-
-func find_all_text_editors(parent: Node):
+func _recursive_find_text_editors(parent: Node):
 	for child in parent.get_children():
-		if child.get_child_count():
-			find_all_text_editors(child)
+		if child.get_child_count() > 0:
+			_recursive_find_text_editors(child)
 			
 		if child is TextEdit:
 			editors[child] = { 
@@ -169,18 +117,47 @@ func find_all_text_editors(parent: Node):
 			
 			if child.gui_input.is_connected(_on_gui_input):
 				child.gui_input.disconnect(_on_gui_input)
-			child.gui_input.connect(_on_gui_input)
+			child.gui_input.connect(_on_gui_input.bind(child))
+
+
+func _on_gui_input(event: InputEvent, textedit: TextEdit):
+	# Get last typed key.
+	if event is InputEventKey and event.pressed:
+		last_key = OS.get_keycode_string(event.get_keycode_with_modifiers())
+		# HACK: Prepare to tackle letter about to be deleted
+		if event.keycode == KEY_BACKSPACE:
+			
+			var line_text = "".join(textedit.get_line_wrapped_text(textedit.get_caret_line()))
+			last_key = line_text[textedit.get_caret_column() - 1]
+
+func _on_caret_changed(textedit: TextEdit):
+	if not editors.has(textedit):
+		# For some reason the editor instances all change
+		# when the file is saved so you need to reload them.
+		find_all_text_editors()
+		
+	editors[textedit]["line"] = textedit.get_caret_line()
+
+func _on_text_changed(textedit: TextEdit):
+	typing.emit()
+	
+	if editors.has(textedit):
+		for caret in textedit.get_caret_count():
+			try_to_emit_effects(textedit, caret)
+	
+	editors[textedit]["text"] = textedit.text
+	editors[textedit]["line"] = textedit.get_caret_line()
 
 
 static func _get_caret_highlight_color(textedit: TextEdit, caret_index := 0) -> Color:
-	var caret_line = textedit.get_caret_line(caret_index)
-	var caret_column = textedit.get_caret_column(caret_index)
+	var caret_line := textedit.get_caret_line(caret_index)
+	var caret_column := textedit.get_caret_column(caret_index)
 	
 	var line_highlighting := textedit.syntax_highlighter.get_line_syntax_highlighting(caret_line)
-	var color := Color.WHITE
-	for number in line_highlighting:
-		if number <= caret_column:
-			color = line_highlighting[number]["color"]
+	var color := textedit.get_theme_color("font_color") #Color.WHITE
+	for column_pos in line_highlighting:
+		if column_pos <= caret_column:
+			color = line_highlighting[column_pos]["color"]
 		else:
 			return color
 	return color

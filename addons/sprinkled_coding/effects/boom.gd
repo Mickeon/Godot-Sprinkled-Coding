@@ -2,7 +2,7 @@
 @static_unload
 extends Node2D
 
-const SprinkleSettings = preload("../dock.gd")
+const SprinkleSettingsDock = preload("../dock.gd")
 
 var key := ""
 
@@ -10,11 +10,11 @@ var key := ""
 
 
 func _ready():
-	if SprinkleSettings.sound:
+	if SprinkleSettingsDock.sound:
 		$AudioStreamPlayer.play()
 	
 	gpu_particle_2d.emitting = true
-	if SprinkleSettings.chars and key:
+	if SprinkleSettingsDock.chars and key:
 		var label: Label = $Label
 		label.text = key
 		label.modulate = Color(randf_range(0,2), randf_range(0,2), randf_range(0,2))

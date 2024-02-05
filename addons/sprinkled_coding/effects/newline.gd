@@ -2,10 +2,10 @@
 @static_unload
 extends Node2D
 
-const SprinkleSettings = preload("../dock.gd")
+const SprinkleSettingsDock = preload("../dock.gd")
 
 func _ready():
-	if SprinkleSettings.blips:
+	if SprinkleSettingsDock.blips:
 		$GPUParticles2D.emitting = true
 
 
